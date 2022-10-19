@@ -6,3 +6,6 @@ cartesian_velocity_controller:
     type: panda_ros_controllers/CartesianVelocityController
     arm_id: panda
 
+cartesian_pose_impedance_controller:
+    type: panda_ros_controllers/CartesianPoseImpedanceController
+    arm_id: panda
