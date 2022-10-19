@@ -1,0 +1,8 @@
+position_joint_trajectory_controller:
+    type: position_controllers/JointTrajectoryController
+    arm_id: panda
+
+cartesian_velocity_controller:
+    type: panda_ros_controllers/CartesianVelocityController
+    arm_id: panda
+

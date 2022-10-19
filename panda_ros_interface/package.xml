@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package>
+  <name>panda_ros_interface</name>
+  <version>0.7.1</version>
+  <description>
+    panda_ros_interface metapackage containing all of the SDK packages
+    for Franka Panda robots using libfranka and franka-ros.
+  </description>
+
+  <maintainer email="jyamada@oxfordrobotics.institute">
+    Jun Yamada
+  </maintainer>
+  <license>Apache 2.0</license>
+  <author>Jun Yamada</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <!-- <run_depend>franka_interface</run_depend> -->
+  <!-- <run_depend>franka_moveit</run_depend> -->
+  <!-- <run_depend>franka_msgs</run_depend> -->
+  <run_depend>franka_ros_controllers</run_depend>
+  <!-- <run_depend>franka_tools</run_depend> -->
+  
+  <export>
+    <metapackage/>
+    <architecture_independent/>
+  </export>
+
+</package>

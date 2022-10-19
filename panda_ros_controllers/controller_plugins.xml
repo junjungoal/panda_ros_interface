@@ -1,0 +1,13 @@
+<library path="lib/libpanda_ros_controllers">
+  <class name="panda_ros_controllers/CartesianVelocityController" type="panda_ros_controllers::CartesianVelocityController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that executes a short motion based on cartesian velocities to demonstrate correct usage
+    </description>
+  </class>
+  <class name="panda_ros_controllers/CartesianPoseImpedanceController" type="panda_ros_controllers::CartesianPoseImpedanceController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that executes a short motion based on cartesian velocities to demonstrate correct usage
+    </description>
+  </class>
+</library>
+
