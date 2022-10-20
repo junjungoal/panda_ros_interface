@@ -34,7 +34,7 @@ catkin_python_setup()
 generate_messages()
 
 generate_dynamic_reconfigure_options(
-    cfg/compliance_param.cfg
+    cfg/minimal_compliance_param.cfg
 )
 
 #catkin_package(
@@ -73,7 +73,7 @@ add_dependencies(panda_ros_controllers
   ${catkin_EXPORTED_TARGETS}
   ${PROJECT_NAME}_generate_messages_cpp
   ${PROJECT_NAME}_gencpp
-  #${PROJECT_NAME}_gencfg
+  ${PROJECT_NAME}_gencfg
 )
 
 include_directories(${dynamic_reconfigure_PACKAGE_PATH}/cmake/cfgbuild.cmake)

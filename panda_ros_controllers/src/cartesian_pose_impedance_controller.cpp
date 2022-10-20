@@ -23,8 +23,8 @@ bool CartesianPoseImpedanceController::init(hardware_interface::RobotHW* robot_h
   std::vector<double> cartesian_stiffness_vector;
   std::vector<double> cartesian_damping_vector;
 
-  sub_desired_twist_ = node_handle.subscribe(
-      "/cartesian_impedance_controller/desired_twist", 20, &CartesianPoseImpedanceController::desiredPoseCallback, this,
+  sub_desired_pose_ = node_handle.subscribe(
+      "/cartesian_impedance_controller/desired_pose", 20, &CartesianPoseImpedanceController::desiredPoseCallback, this,
       ros::TransportHints().reliable().tcpNoDelay());
 
   // Getting ROSParams
@@ -95,7 +95,7 @@ bool CartesianPoseImpedanceController::init(hardware_interface::RobotHW* robot_h
       ros::NodeHandle(node_handle.getNamespace() + "dynamic_reconfigure_compliance_param_node");
 
   dynamic_server_compliance_param_ = std::make_unique<
-      dynamic_reconfigure::Server<panda_ros_controllers::compliance_paramConfig>>(
+      dynamic_reconfigure::Server<panda_ros_controllers::minimal_compliance_paramConfig>>(
 
       dynamic_reconfigure_compliance_param_node_);
   dynamic_server_compliance_param_->setCallback(
@@ -107,16 +107,13 @@ bool CartesianPoseImpedanceController::init(hardware_interface::RobotHW* robot_h
   orientation_d_.coeffs() << 0.0, 0.0, 0.0, 1.0;
   position_d_target_.setZero();
   orientation_d_target_.coeffs() << 0.0, 0.0, 0.0, 1.0;
-  velocity_d_.setZero();
-
   cartesian_stiffness_.setZero();
   cartesian_damping_.setZero();
-
 
   ///////////////////////////////////////////////////////////////////////////
   ////////////////  Parameter Initialization from YAML FILES!!!     /////////
   ///////////////////////////////////////////////////////////////////////////
-  update_impedance_params_    = false; // When set to true from dynamic reconfigure will overwrite yaml file values
+
    // Initialize stiffness and damping gains
   cartesian_stiffness_target_.setIdentity();
   cartesian_damping_target_.setIdentity();
@@ -129,9 +126,15 @@ bool CartesianPoseImpedanceController::init(hardware_interface::RobotHW* robot_h
   }
   for (int i = 0; i < 6; i ++) {
     cartesian_stiffness_target_(i,i) = cartesian_stiffness_target_yaml[i];
-    cartesian_damping_target_(i,i) = 2.0 * sqrt(cartesian_stiffness_target_yaml[i]);
   }
-  
+  // Damping ratio = 1
+  default_cart_stiffness_target_ << 300, 300, 300, 50, 50, 50;
+  for (int i = 0; i < 6; i ++) {
+    if (cartesian_stiffness_target_yaml[i] == 0.0)
+      cartesian_damping_target_(i,i) = 2.0 * sqrt(default_cart_stiffness_target_[i]);
+    else
+      cartesian_damping_target_(i,i) = 2.0 * sqrt(cartesian_stiffness_target_yaml[i]);
+  }
   ROS_INFO_STREAM("cartesian_stiffness_target_: " << std::endl <<  cartesian_stiffness_target_);
   ROS_INFO_STREAM("cartesian_damping_target_: " << std::endl <<  cartesian_damping_target_);
 
@@ -173,8 +176,6 @@ bool CartesianPoseImpedanceController::init(hardware_interface::RobotHW* robot_h
       q_d_nullspace_[i] = q_nullspace.at(i);
     ROS_INFO_STREAM("Desired nullspace position (from YAML): " << std::endl << q_d_nullspace_);
   }
-
-
   return true;
 }
 
@@ -201,16 +202,10 @@ void CartesianPoseImpedanceController::starting(const ros::Time& /*time*/) {
     q_d_nullspace_initialized_ = true;
     ROS_INFO_STREAM("Desired nullspace position (from q_initial): " << std::endl << q_d_nullspace_);
   }
-
-  // To compute 0 velocities if no command has been given
-  elapsed_time    = ros::Duration(0.0);
-  last_cmd_time   = 0.0;
-  vel_cmd_timeout = 0.1;
-
 }
 
 void CartesianPoseImpedanceController::update(const ros::Time& /*time*/,
-                                                 const ros::Duration& period) {
+                                                 const ros::Duration& /*period*/) {
   // get state variables
   franka::RobotState robot_state = state_handle_->getRobotState();
   std::array<double, 7> coriolis_array = model_handle_->getCoriolis();
@@ -230,18 +225,6 @@ void CartesianPoseImpedanceController::update(const ros::Time& /*time*/,
   Eigen::Vector3d position(transform.translation());
   Eigen::Quaterniond orientation(transform.linear());
 
-  // Current and Desired EE velocity
-  Eigen::Matrix<double, 6, 1> velocity;
-  Eigen::Matrix<double, 6, 1> velocity_desired_;
-  velocity << jacobian * dq;
-  velocity_desired_.setZero();
-  velocity_desired_.head(3) << velocity_d_;
-
-  // Check velocity command
-  elapsed_time += period;
-  if(ros::Time::now().toSec() - last_cmd_time > vel_cmd_timeout){
-    velocity_d_.setZero();
-  }
 
   //////////////////////////////////////////////////////////////////////////////////////////////////
   //////////////////////              COMPUTING TASK CONTROL TORQUE           //////////////////////
@@ -251,16 +234,12 @@ void CartesianPoseImpedanceController::update(const ros::Time& /*time*/,
   // allocate variables
   Eigen::VectorXd tau_task(7), tau_nullspace(7), tau_d(7), tau_tool(7);
 
-  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
-  //++++++++++++++ CLASSICAL IMPEDANCE CONTROL FOR CARTESIAN COMMAND ++++++++++++++//
-  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 
-  // Compute task-space errors
-  Eigen::Matrix<double, 6, 1> pose_error;
-  pose_error.setZero();
-
-  // --- Pose Error  --- //     
-  pose_error.head(3) << position - position_d_;
+  // ROS_INFO_STREAM ("Doing Cartesian Impedance Control");            
+  // compute error to desired pose
+  // position error
+  Eigen::Matrix<double, 6, 1> error;
+  error.head(3) << position - position_d_;
 
   // orientation error
   if (orientation_d_.coeffs().dot(orientation.coeffs()) < 0.0) {
@@ -268,30 +247,23 @@ void CartesianPoseImpedanceController::update(const ros::Time& /*time*/,
   }
   // "difference" quaternion
   Eigen::Quaterniond error_quaternion(orientation.inverse() * orientation_d_);
-  pose_error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
+  error.tail(3) << error_quaternion.x(), error_quaternion.y(), error_quaternion.z();
   // Transform to base frame
-  pose_error.tail(3) << -transform.linear() * pose_error.tail(3);
+  error.tail(3) << -transform.linear() * error.tail(3);
 
-  // Computing control torque from cartesian pose error from integrated velocity command
+  // Cartesian PD control with damping ratio = 1
+  Eigen::Matrix<double, 6, 1> velocity;
+  velocity << jacobian * dq;
   Eigen::VectorXd     F_ee_des_;
   F_ee_des_.resize(6);
-  F_ee_des_ << -cartesian_stiffness_ * pose_error - cartesian_damping_ * velocity;
+  F_ee_des_ << -cartesian_stiffness_ * error - cartesian_damping_ * velocity;
   tau_task << jacobian.transpose() * F_ee_des_;
-
-
-  ROS_WARN_STREAM_THROTTLE(0.5, "Cartesian Linear Stiffness:"     << cartesian_stiffness_(0,0));
-  ROS_WARN_STREAM_THROTTLE(0.5, "Cartesian Linear Damping:"     << cartesian_damping_(0,0));
-  ROS_WARN_STREAM_THROTTLE(0.5, "Desired Velocity Norm:"          << velocity_d_.norm());
-  ROS_WARN_STREAM_THROTTLE(0.5, "Current Velocity Norm:"          << velocity.head(3).norm());
-  ROS_WARN_STREAM_THROTTLE(0.5, "Classic Linear Control Force:"   << F_ee_des_.head(3).norm());
+  ROS_WARN_STREAM_THROTTLE(0.5, "Current Velocity Norm:" << velocity.head(3).norm());
+  ROS_WARN_STREAM_THROTTLE(0.5, "Classic Linear Control Force:" << F_ee_des_.head(3).norm());
   ROS_WARN_STREAM_THROTTLE(0.5, "Classic Angular Control Force :" << F_ee_des_.tail(3).norm());
-  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
-  //+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 
+  //////////////////////////////////////////////////////////////////////////////////////////////////
 
-  //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
-  //++++++++++++++ ADDITIONAL CONTROL TORQUES (NULLSPACE AND TOOL COMPENSATION) ++++++++++++++//
-  //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++//
 
   // pseudoinverse for nullspace handling
   // kinematic pseudoinverse
@@ -299,12 +271,16 @@ void CartesianPoseImpedanceController::update(const ros::Time& /*time*/,
   pseudoInverse(jacobian.transpose(), jacobian_transpose_pinv);
 
   // nullspace PD control with damping ratio = 1
-  ROS_WARN_STREAM_THROTTLE(0.5, "Nullspace stiffness:" << nullspace_stiffness_);
+  ROS_WARN_STREAM_THROTTLE(0.5, "Nullspace stiffness:" << nullspace_stiffness_); 
   tau_nullspace << (Eigen::MatrixXd::Identity(7, 7) -
                     jacobian.transpose() * jacobian_transpose_pinv) *
                        (nullspace_stiffness_ * (q_d_nullspace_ - q) -
                         (2.0 * sqrt(nullspace_stiffness_)) * dq);
-  // ROS_WARN_STREAM_THROTTLE(0.5, "Nullspace torques:" << tau_nullspace.transpose()); 
+
+  ROS_WARN_STREAM_THROTTLE(0.5, "Nullspace torques:" << tau_nullspace.transpose());    
+  // double tau_nullspace_0 = tau_nullspace(0);
+  // tau_nullspace.setZero();
+  // tau_nullspace[0] = tau_nullspace_0; 
 
   // Compute tool compensation (scoop/camera in scooping task)
   if (activate_tool_compensation_)
@@ -312,9 +288,9 @@ void CartesianPoseImpedanceController::update(const ros::Time& /*time*/,
   else
     tau_tool.setZero();
 
-  // FINAL DESIRED CONTROL TORQUE SENT TO ROBOT
+  // Desired torque
   tau_d << tau_task + tau_nullspace + coriolis - tau_tool;
-  // ROS_WARN_STREAM_THROTTLE(0.5, "Desired control torque:" << tau_d.transpose());
+  ROS_WARN_STREAM_THROTTLE(0.5, "Desired control torque:" << tau_d.transpose());
 
   // Saturate torque rate to avoid discontinuities
   tau_d << saturateTorqueRate(tau_d, tau_J_d);
@@ -327,8 +303,8 @@ void CartesianPoseImpedanceController::update(const ros::Time& /*time*/,
 
   // update parameters changed online either through dynamic reconfigure or through the interactive
   // target by filtering
-  cartesian_stiffness_ = cartesian_stiffness_target_ ;
-  cartesian_damping_   = cartesian_damping_target_;
+  cartesian_stiffness_  = cartesian_stiffness_target_;
+  cartesian_damping_    = cartesian_damping_target_;
   nullspace_stiffness_  = nullspace_stiffness_target_;
   position_d_ = filter_params_ * position_d_target_ + (1.0 - filter_params_) * position_d_;
   orientation_d_ = orientation_d_.slerp(filter_params_, orientation_d_target_);
@@ -347,47 +323,28 @@ Eigen::Matrix<double, 7, 1> CartesianPoseImpedanceController::saturateTorqueRate
 }
 
 void CartesianPoseImpedanceController::complianceParamCallback(
-    panda_ros_controllers::compliance_paramConfig& config,
+    panda_ros_controllers::minimal_compliance_paramConfig& config,
     uint32_t /*level*/) {
-  activate_tool_compensation_ = config.activate_tool_compensation;  
-  update_impedance_params_    = config.update_impedance_params;
 
-  if (update_impedance_params_){
-      cartesian_stiffness_target_.setIdentity();
-      cartesian_stiffness_target_.topLeftCorner(3, 3)
-          << config.translational_stiffness * Eigen::Matrix3d::Identity();
-      cartesian_stiffness_target_.bottomRightCorner(3, 3)
-          << config.rotational_stiffness * Eigen::Matrix3d::Identity();
-      
+  activate_tool_compensation_ = config.activate_tool_compensation;
+}
 
-      cartesian_damping_target_.setIdentity();
-      // Damping ratio = 1
-      cartesian_damping_target_.topLeftCorner(3, 3)
-          << 2.0 * sqrt(config.translational_stiffness) * Eigen::Matrix3d::Identity();
-      cartesian_damping_target_.bottomRightCorner(3, 3)
-          << 2.0 * sqrt(config.rotational_stiffness) * Eigen::Matrix3d::Identity();
-      nullspace_stiffness_target_ = config.nullspace_stiffness;   
+void CartesianPoseImpedanceController::desiredPoseCallback(
+    const geometry_msgs::PoseStampedConstPtr& msg) {
+
+  position_d_target_ << msg->pose.position.x, msg->pose.position.y, msg->pose.position.z;
+  // ROS_INFO_STREAM("[CALLBACK] Desired ee position from DS: " << position_d_target_);
+  
+  Eigen::Quaterniond last_orientation_d_target(orientation_d_target_);
+  orientation_d_target_.coeffs() << msg->pose.orientation.x, msg->pose.orientation.y,
+      msg->pose.orientation.z, msg->pose.orientation.w;
+  
+  if (last_orientation_d_target.coeffs().dot(orientation_d_target_.coeffs()) < 0.0) {
+    orientation_d_target_.coeffs() << -orientation_d_target_.coeffs();
   }
 }
 
-
-void CartesianPoseImpedanceController::desiredPoseCallback(
-    const geometry_msgs::TwistConstPtr& msg) {
-
-  velocity_d_      << msg->linear.x, msg->linear.y, msg->linear.z;
-  last_cmd_time    = ros::Time::now().toSec();
-
-
-  franka::RobotState robot_state = state_handle_->getRobotState();
-  Eigen::Affine3d transform(Eigen::Matrix4d::Map(robot_state.O_T_EE.data()));
-  Eigen::Vector3d position(transform.translation());
-
-  double dt_call = 1./1000;
-  double int_gain = 250;
-  position_d_target_  << position + velocity_d_*dt_call*int_gain; //Int_gain: Scaling to make it faster! (200 goes way faster than the desired)
-}
-
-}  // namespace franka_controllers
+}  // namespace panda_ros_controllers_controllers
 
 PLUGINLIB_EXPORT_CLASS(panda_ros_controllers::CartesianPoseImpedanceController,
                        controller_interface::ControllerBase)

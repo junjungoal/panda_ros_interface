@@ -79,15 +79,20 @@ class PandaArmInterface(object):
         self._joint_velocity = AttrDict()
         self._joint_effort = AttrDict()
 
-        self.switch_controllers('cartesian_velocity_controller')
-        rospy.loginfo("Waiting for current target velocity")
-        self.cmd_vel_pub = rospy.Publisher("/franka_control/target_velocity", Twist, queue_size=1)
-        rospy.loginfo("Connected to current trarget velocity")
+        if self.is_in_controller_list('cartesian_velocity_controller'):
+            self.switch_controllers('cartesian_velocity_controller')
+            rospy.loginfo("Waiting for current target velocity")
+            self.cmd_vel_pub = rospy.Publisher("/franka_control/target_velocity", Twist, queue_size=1)
+            rospy.loginfo("Connected to current trarget velocity")
 
-        self.switch_controllers('cartesian_pose_impedance_controller')
-        rospy.loginfo("Waiting for cartesian pose impedance publisher")
-        self.cmd_pose_impedance_pub = rospy.Publisher("/cartesian_impedance_controller/desired_twist", Twist, queue_size=1)
-        rospy.loginfo("Connected to cartesian pose impedance publisher")
+        if self.is_in_controller_list('cartesian_pose_impedance_controller'):
+            import pdb
+            pdb.set_trace()
+            self.switch_controllers('cartesian_pose_impedance_controller')
+            rospy.loginfo("Waiting for cartesian pose impedance publisher")
+            self.cmd_pose_impedance_pub = rospy.Publisher("/cartesian_impedance_controller/desired_pose", PoseStamped, queue_size=10)
+            rospy.sleep(1.)
+            rospy.loginfo("Connected to cartesian pose impedance publisher")
         self.switch_controllers('position_joint_trajectory_controller')
 
 
@@ -273,6 +278,29 @@ class PandaArmInterface(object):
         else:
             return self._gripper.move_joints(width)
 
+    def exec_cartesian_pose_impedance_cmd(self, pos, ori=None):
+        import pdb
+        pdb.set_trace()
+        running = self.controller_is_running('cartesian_pose_impedance_controller')
+        if not running:
+            print ("Switching to position control")
+            resp = self.switch_controllers('cartesian_pose_impedance_controller')
+
+        pose = PoseStamped()
+        pose.header.stamp = rospy.Time(0)
+        if ori is None:
+            ori = self._cartesian_pose['orientation']
+
+        pose.pose.orientation.x = ori[0]
+        pose.pose.orientation.y = ori[1]
+        pose.pose.orientation.z = ori[2]
+        pose.pose.orientation.w = ori[3]
+
+        pose.pose.position.x = pos[0]
+        pose.pose.position.y = pos[1]
+        pose.pose.position.z = pos[2]
+        self.cmd_pose_impedance_pub.publish(pose)
+
     def exec_cartesian_velocity_cmd(self, twist):
         if not isinstance(twist, Twist):
             new_twist = Twist()
@@ -427,6 +455,13 @@ class PandaArmInterface(object):
             if cs.name == name:
                 return cs.state == 'running'
 
+        return False
+
+    def is_in_controller_list(self, name):
+        controller_status = self.query_controller_status()
+        for cs in controller_status.controller:
+            if cs.name == name:
+                return True
         return False
 
     def query_controller_status(self):

@@ -9,14 +9,13 @@
 #include <controller_interface/multi_interface_controller.h>
 #include <dynamic_reconfigure/server.h>
 #include <geometry_msgs/PoseStamped.h>
-#include <geometry_msgs/Twist.h>
 #include <hardware_interface/joint_command_interface.h>
 #include <hardware_interface/robot_hw.h>
 #include <ros/node_handle.h>
 #include <ros/time.h>
 #include <Eigen/Dense>
 
-#include <panda_ros_controllers/compliance_paramConfig.h>
+#include <panda_ros_controllers/minimal_compliance_paramConfig.h>
 #include <franka_hw/franka_model_interface.h>
 #include <franka_hw/franka_state_interface.h>
 
@@ -41,7 +40,6 @@ class CartesianPoseImpedanceController : public controller_interface::MultiInter
   std::unique_ptr<franka_hw::FrankaModelHandle> model_handle_;
   std::vector<hardware_interface::JointHandle> joint_handles_;
 
-  double dt_ = 0.001;
   double filter_params_{0.005};
   double nullspace_stiffness_{20.0};
   double nullspace_stiffness_target_{20.0};
@@ -50,8 +48,8 @@ class CartesianPoseImpedanceController : public controller_interface::MultiInter
   Eigen::Matrix<double, 6, 6> cartesian_stiffness_target_;
   Eigen::Matrix<double, 6, 6> cartesian_damping_;
   Eigen::Matrix<double, 6, 6> cartesian_damping_target_;
-  Eigen::Matrix<double, 7, 1> q_d_nullspace_;
   Eigen::Matrix<double, 6, 1> default_cart_stiffness_target_;
+  Eigen::Matrix<double, 7, 1> q_d_nullspace_;
 
   // whether to load from yaml or use initial robot config
   bool q_d_nullspace_initialized_ = false;
@@ -59,29 +57,21 @@ class CartesianPoseImpedanceController : public controller_interface::MultiInter
   Eigen::Quaterniond orientation_d_;
   Eigen::Vector3d position_d_target_;
   Eigen::Quaterniond orientation_d_target_;
-  Eigen::Vector3d velocity_d_;
-
-  // Timing
-  ros::Duration elapsed_time;
-  double last_cmd_time;
-  double vel_cmd_timeout;
-
 
   // Variables for initialization and tool compensation
   Eigen::Matrix<double, 6, 1> tool_compensation_force_;
   bool activate_tool_compensation_;
-  bool update_impedance_params_;
-
+  
   // Dynamic reconfigure
-  std::unique_ptr<dynamic_reconfigure::Server<panda_ros_controllers::compliance_paramConfig>>
+  std::unique_ptr<dynamic_reconfigure::Server<panda_ros_controllers::minimal_compliance_paramConfig>>
       dynamic_server_compliance_param_;
   ros::NodeHandle dynamic_reconfigure_compliance_param_node_;
-  void complianceParamCallback(panda_ros_controllers::compliance_paramConfig& config,
+  void complianceParamCallback(panda_ros_controllers::minimal_compliance_paramConfig& config,
                                uint32_t level);
 
-  // Desired twist subscriber
-  ros::Subscriber sub_desired_twist_;
-  void desiredPoseCallback(const geometry_msgs::TwistConstPtr& msg);
+  // Desireds pose subscriber
+  ros::Subscriber sub_desired_pose_;
+  void desiredPoseCallback(const geometry_msgs::PoseStampedConstPtr& msg);
 };
 
 }  // namespace panda_ros_controllers
