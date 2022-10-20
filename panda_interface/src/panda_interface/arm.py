@@ -50,7 +50,6 @@ class PandaArmInterface(object):
         self.switcher_srv = rospy.ServiceProxy('/controller_manager/switch_controller', SwitchController)
 
         self.franka_state = None
-        self.current_target_velocity = Twist()
         self.error_recovery_client = actionlib.SimpleActionClient('/franka_control/error_recovery',
                                                                   ErrorRecoveryAction)
 
@@ -275,6 +274,17 @@ class PandaArmInterface(object):
             return self._gripper.move_joints(width)
 
     def exec_cartesian_velocity_cmd(self, twist):
+        if not isinstance(twist, Twist):
+            new_twist = Twist()
+            new_twist.linear.x = twist[0]
+            new_twist.linear.y = twist[1]
+            new_twist.linear.z = twist[2]
+            twist = new_twist
+
+        running = self.controller_is_running('cartesian_velocity_controller')
+        if not running:
+            print ("Switching to position control")
+            resp = self.switch_controllers('cartesian_velocity_controller')
         #
         # Clip x-velocity if outsize the safety zone and request is to further violate it
         #
@@ -287,22 +297,22 @@ class PandaArmInterface(object):
         #
         # Clip y-velocity if outsize the safety zone and request is to further violate it
         #
-        if self.O_P_EE[1] < self._hp.ee_safety_zone[1][0] and twist.linear.y < 0:
+        if self._cartesian_pose.position[1] < self._hp.ee_safety_zone[1][0] and twist.linear.y < 0:
             twist.linear.y = 0.0
 
-        if self.O_P_EE[1] > self._hp.ee_safety_zone[1][1] and twist.linear.y > 0:
+        if self._cartesian_pose.position[1] > self._hp.ee_safety_zone[1][1] and twist.linear.y > 0:
             twist.linear.y = 0.0
-
 
         #
         # Clip z-velocity if outsize the safety zone and request is to further violate it
         #
-        if self.O_P_EE[2] < self._hp.ee_safety_zone[2][0] and twist.linear.z < 0:
+        if self._cartesian_pose.position[2] < self._hp.ee_safety_zone[2][0] and twist.linear.z < 0:
             twist.linear.z = 0.0
 
-        if self.O_P_EE[2] > self._hp.ee_safety_zone[2][1] and twist.linear.z > 0:
+        if self._cartesian_pose.position[2] > self._hp.ee_safety_zone[2][1] and twist.linear.z > 0:
             twist.linear.z = 0.0
 
+        print(twist)
         self.cmd_vel_pub.publish(twist)
 
     def recover_from_errors(self):
