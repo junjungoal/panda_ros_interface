@@ -1,15 +1,28 @@
-cartesian_velocity_controller:
-    type: panda_ros_controllers/CartesianVelocityController
-    arm_id: panda
-
+# cartesian_velocity_controller:
+#     type: panda_ros_controllers/CartesianVelocityController
+#     arm_id: panda
+#
 cartesian_pose_impedance_controller:
     type: panda_ros_controllers/CartesianPoseImpedanceController
     arm_id: panda
     joint_names:
-    - panda_joint1
-    - panda_joint2
-    - panda_joint3
-    - panda_joint4
-    - panda_joint5
-    - panda_joint6
-    - panda_joint7
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+
+# cartesian_pose_impedance_controller:
+#     type: franka_interactive_controllers/CartesianPoseImpedanceController
+#     arm_id: panda
+#     joint_names:
+#         - panda_joint1
+#         - panda_joint2
+#         - panda_joint3
+#         - panda_joint4
+#         - panda_joint5
+#         - panda_joint6
+#         - panda_joint7
+#

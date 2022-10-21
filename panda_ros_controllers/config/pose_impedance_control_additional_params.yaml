@@ -23,6 +23,3 @@ external_tool_compensation: [0, 0, 0.0, 0, 0.0, 0.0] #Check F_ext
 # cartesian_stiffness_target: [300, 300, 300, 50, 50, 50]
 # cartesian_stiffness_target: [1000, 200, 200, 50, 50, 50]
 
-
-
-

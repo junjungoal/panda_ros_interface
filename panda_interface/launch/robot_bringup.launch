@@ -11,13 +11,13 @@
   </include>
 
   <rosparam command="load" file="$(find panda_ros_controllers)/config/franka_controllers.yaml" />
-  <rosparam  ns="cartesian_pose_impedance_controller" command="load" file="$(find panda_ros_controllers)/config/cartesian_pose_impedance_additional_params.yaml"/>
 
   <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen"
-        args="$(arg controller)"/>
-        <!-- args="position_joint_trajectory_controller"/> -->
+      args="position_joint_trajectory_controller"/>
   <node name="controller_spawner2" pkg="controller_manager" type="spawner" respawn="false" output="screen"
-      args="--stopped position_joint_trajectory_controller"/>
+      args="--stopped cartesian_pose_impedance_controller"/>
+
+  <rosparam  ns="cartesian_pose_impedance_controller" command="load" file="$(find panda_ros_controllers)/config/pose_impedance_control_additional_params.yaml"/>
 
 </launch>
 

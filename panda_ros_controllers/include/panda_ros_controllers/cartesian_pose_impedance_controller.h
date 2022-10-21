@@ -74,4 +74,4 @@ class CartesianPoseImpedanceController : public controller_interface::MultiInter
   void desiredPoseCallback(const geometry_msgs::PoseStampedConstPtr& msg);
 };
 
-}  // namespace panda_ros_controllers
+}

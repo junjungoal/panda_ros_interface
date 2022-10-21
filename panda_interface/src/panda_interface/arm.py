@@ -86,8 +86,6 @@ class PandaArmInterface(object):
             rospy.loginfo("Connected to current trarget velocity")
 
         if self.is_in_controller_list('cartesian_pose_impedance_controller'):
-            import pdb
-            pdb.set_trace()
             self.switch_controllers('cartesian_pose_impedance_controller')
             rospy.loginfo("Waiting for cartesian pose impedance publisher")
             self.cmd_pose_impedance_pub = rospy.Publisher("/cartesian_impedance_controller/desired_pose", PoseStamped, queue_size=10)
@@ -279,8 +277,6 @@ class PandaArmInterface(object):
             return self._gripper.move_joints(width)
 
     def exec_cartesian_pose_impedance_cmd(self, pos, ori=None):
-        import pdb
-        pdb.set_trace()
         running = self.controller_is_running('cartesian_pose_impedance_controller')
         if not running:
             print ("Switching to position control")

@@ -1,14 +1,16 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.4)
 project(panda_ros_controllers)
 
-
+set(CMAKE_BUILD_TYPE Release)
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(catkin REQUIRED
   COMPONENTS
   controller_interface
   dynamic_reconfigure
+  control_toolbox
+  eigen_conversions
   franka_hw
   geometry_msgs
   hardware_interface
@@ -27,6 +29,7 @@ find_package(catkin REQUIRED
 )
 
 find_package(Eigen3 REQUIRED)
+find_package(Franka 0.7.0 REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time thread)
 
 catkin_python_setup()
@@ -34,7 +37,11 @@ catkin_python_setup()
 generate_messages()
 
 generate_dynamic_reconfigure_options(
-    cfg/minimal_compliance_param.cfg
+  cfg/minimal_compliance_param.cfg
+  cfg/compliance_param.cfg
+  cfg/compliance_full_param.cfg
+  cfg/desired_mass_param.cfg
+  cfg/gravity_compensation_param.cfg
 )
 
 #catkin_package(
@@ -52,7 +59,9 @@ catkin_package(
   LIBRARIES panda_ros_controllers
   CATKIN_DEPENDS
     controller_interface
+    controller_interface
     dynamic_reconfigure
+    eigen_conversions
     franka_hw
     geometry_msgs
     hardware_interface
@@ -106,13 +115,6 @@ install(TARGETS panda_ros_controllers
 ###########
 
 include_directories(${THIS_PACKAGE_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIR} ${EIGEN3_INCLUDE_DIRS})
-
-install(PROGRAMS
-  src/remap_joy_to_twist.py
-  src/panda_env_test.py
-  src/panda_client.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
 
 install(DIRECTORY launch DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 
