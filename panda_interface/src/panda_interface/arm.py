@@ -225,7 +225,7 @@ class PandaArmInterface(object):
         return copy.deepcopy(self._cartesian_velocity)
 
     def tip_effort(self, in_base_frame=True):
-        return copy.deepcopy(self._cartesian_effort) if base_frame else copy.deepcopy(self._stiffness_frame_effort)
+        return copy.deepcopy(self._cartesian_effort) if in_base_frame else copy.deepcopy(self._stiffness_frame_effort)
 
     def set_joint_position_speed(self, speed=0.3):
         """
@@ -340,8 +340,8 @@ class PandaArmInterface(object):
         self.cmd_vel_pub.publish(twist)
 
     def recover_from_errors(self):
-        # goal = ErrorRecoveryActionGoal()
-        goal = ErrorRecoveryGoal()
+        goal = ErrorRecoveryActionGoal()
+        # goal = ErrorRecoveryGoal()
         self.error_recovery_client.send_goal(goal)
         print ("Waiting for recovery goal")
         self.error_recovery_client.wait_for_result()
