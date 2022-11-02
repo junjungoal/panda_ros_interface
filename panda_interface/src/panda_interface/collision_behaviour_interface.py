@@ -23,18 +23,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # **************************************************************************/
+import numpy as np
 import rospy
 from franka_msgs.srv import SetForceTorqueCollisionBehavior
 
 DEFAULT_VALUES =  {
             'torque_acc_lower'  : [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
-            'torque_acc_upper'  : [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
+            'torque_acc_upper'  : np.array([20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0])*2,
             'torque_lower'      : [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
-            'torque_upper'      : [20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0],
+            'torque_upper'      : np.array([20.0, 20.0, 18.0, 18.0, 16.0, 14.0, 12.0])*2,
             'force_acc_lower'   : [20.0, 20.0, 20.0, 25.0, 25.0, 25.0],
-            'force_acc_upper'   : [20.0, 20.0, 20.0, 25.0, 25.0, 25.0],
+            'force_acc_upper'   : np.array([20.0, 20.0, 20.0, 25.0, 25.0, 25.0])*2,
             'force_lower'   : [5.0, 5.0, 5.0, 25.0, 25.0, 25.0],
-            'force_upper'   : [20.0, 20.0, 20.0, 25.0, 25.0, 25.0] # NOTE: COLLISION VALUES HAVE TO BE HIGHER THAN CONTACT THRESHOLDS (I.E. 'UPPER' THRESHOLDS HAVE TO BE HIGHER THAN 'LOWER' THRESHOLDS) FOR DETECTING COLLISIONS CORRECTLY. THE ROBOT DETECTS THE HIGHER VALUE OF THE TWO AS COLLISION.
+            'force_upper'   : np.array([20.0, 20.0, 20.0, 25.0, 25.0, 25.0])*2 # NOTE: COLLISION VALUES HAVE TO BE HIGHER THAN CONTACT THRESHOLDS (I.E. 'UPPER' THRESHOLDS HAVE TO BE HIGHER THAN 'LOWER' THRESHOLDS) FOR DETECTING COLLISIONS CORRECTLY. THE ROBOT DETECTS THE HIGHER VALUE OF THE TWO AS COLLISION.
 }
 
 class CollisionBehaviourInterface(object):

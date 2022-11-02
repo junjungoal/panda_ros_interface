@@ -40,10 +40,12 @@ class PandaArmInterface(object):
 
         self._joint_names = rospy.get_param("/franka_control/joint_names")
         self._joint_limits = self._get_joint_limits()
-        self._neutral_pose_joints = self._get_neutral_pose()
+        # self._neutral_pose_joints = self._get_neutral_pose()
+        self._neutral_pose_joints = dict(zip(self._joint_names, self._get_neutral_pose()))
 
         self._movegroup_interface = PandaMoveGroupInterface()
         self._collision_behaviour_interface = CollisionBehaviourInterface()
+        self._collision_behaviour_interface.set_ft_contact_collision_behaviour()
         self._gripper = GripperInterface()
 
         rospy.wait_for_service('/controller_manager/switch_controller')
@@ -58,8 +60,7 @@ class PandaArmInterface(object):
         print ("Waiting for error recovery server in franka_control")
         self.error_recovery_client.wait_for_server()
         print ("Found error recovery server")
-        if self.is_in_collision_mode():
-            self.recover_from_errors()
+        self.recover_from_errors()
 
         rospy.loginfo("Waiting for Franka States")
         self.state_subscriber = rospy.Subscriber('/franka_state_controller/franka_states',
