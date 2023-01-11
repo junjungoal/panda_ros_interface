@@ -24,10 +24,10 @@ def create_pose_msg(position, orientation):
         pose.orientation.z = orientation.z
         pose.orientation.w = orientation.w
     else:
-        pose.orientation.x = orientation[1]
-        pose.orientation.y = orientation[2]
-        pose.orientation.z = orientation[3]
-        pose.orientation.w = orientation[0]
+        pose.orientation.x = orientation[0]
+        pose.orientation.y = orientation[1]
+        pose.orientation.z = orientation[2]
+        pose.orientation.w = orientation[3]
 
     return pose
 

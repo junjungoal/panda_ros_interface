@@ -28,7 +28,7 @@ from moveit_msgs.msg import Constraints, OrientationConstraint
 import numpy as np
 from math import pi
 from panda_interface.utils.general_utils import AttrDict, ParamDict
-from panda_interface.utils.transform_utils import mat2quat, quat2mat
+from panda_interface.utils.transform_utils import mat2quat, quat2mat, quat_multiply
 from panda_interface.utils.ros_utils import create_pose_msg
 from panda_interface.move_group_interface import PandaMoveGroupInterface
 from panda_interface.collision_behaviour_interface import CollisionBehaviourInterface
@@ -296,6 +296,12 @@ class PandaArmInterface(object):
         pose.pose.position.x = pos[0]
         pose.pose.position.y = pos[1]
         pose.pose.position.z = pos[2]
+
+        current_pose = self.tip_pose()
+        if np.abs(current_pose.position[0] - pos[0]) > 0.1 or np.abs(current_pose.position[1]-pos[1]) > 0.1 or np.abs(current_pose.position[2] - pos[2]) > 0.1:
+            raise ValueError('Invalid position value')
+
+
         self.cmd_pose_impedance_pub.publish(pose)
 
     def exec_cartesian_velocity_cmd(self, twist):
@@ -400,7 +406,15 @@ class PandaArmInterface(object):
         new_ori = mat.dot(F_T_EE[:3,:3].T)
         new_pos = pos - new_ori.dot(F_T_EE[:3, 3])
 
-        return new_pos, mat2quat(new_ori)
+        return new_pos, mat2quat(new_ori).astype(np.float64)
+
+    def move_to_cartesian_delta(self, pos, ori=None, use_moveit=True):
+        current_pose = self._cartesian_pose
+        desired_pos = current_pose['position'] + pos
+        if ori is None:
+            ori = np.array([0, 0, 0, 1])
+        desired_ori = quat_multiply(current_pose['orientation'], ori)
+        return self.move_to_cartesian_pose(desired_pos, desired_ori, use_moveit=use_moveit)
 
     def move_to_cartesian_pose(self, pos, ori=None, use_moveit=True):
         if not use_moveit or self._movegroup_interface is None:

@@ -1,5 +1,7 @@
 setup.py
 src/panda_interface/arm.py
+src/panda_interface/collision_behaviour_interface.py
+src/panda_interface/gripper.py
 src/panda_interface/move_group_interface.py
 src/panda_interface.egg-info/PKG-INFO
 src/panda_interface.egg-info/SOURCES.txt

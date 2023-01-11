@@ -78,6 +78,7 @@ class PandaMoveGroupInterface:
 
         self._arm_group = moveit_commander.MoveGroupCommander("panda_arm")
         self._arm_group.set_pose_reference_frame("panda_link0")
+        self._arm_group.set_goal_tolerance(0.0005)
 
         try:
             rospy.get_param("/franka_gripper/robot_ip")

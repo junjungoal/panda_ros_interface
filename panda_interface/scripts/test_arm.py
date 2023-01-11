@@ -11,6 +11,7 @@ if __name__ == '__main__':
     rospy.init_node('panda_client')
     config = {}
     panda = PandaArmInterface(config)
-    while True:
-        print('hi')
-        rospy.sleep(0.1)
+    print(panda.tip_pose().position)
+    # while True:
+    #     print('hi')
+    #     rospy.sleep(0.1)
