@@ -8,18 +8,14 @@
 
   <!-- <node name="joint_state_desired_publisher" pkg="topic_tools" type="relay" args="joint_states joint_states_desired" /> -->
   <include file="$(find panda_moveit_config)/launch/move_group.launch">
-    <arg name="load_gripper" value="$(arg load_gripper)" />
+    <!-- <arg name="load_gripper" value="$(arg load_gripper)" /> -->
   </include>
 
-  <include file="$(find realsense2_camera)/launch/rs_camera.launch">
-      <arg name="camera" value="front_camera" />
-      <arg name="serial_no" value="042222071670" />
-  </include>
+  <!-- <include file="$(find realsense2_camera)/launch/rs_camera.launch"> -->
+  <!--     <arg name="camera" value="front_camera" /> -->
+  <!--     <arg name="serial_no" value="042222071670" /> -->
+  <!-- </include> -->
 
-  <include file="$(find realsense2_camera)/launch/rs_camera.launch">
-    <arg name="camera" value="back_camera" />
-    <arg name="serial_no" value="844212071220" />
-  </include>
 
   <include file="$(find panda_moveit_config)/launch/moveit_rviz.launch" if="$(arg launch_rviz)" />
 </launch>

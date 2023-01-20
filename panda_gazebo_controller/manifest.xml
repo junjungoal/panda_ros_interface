@@ -1,0 +1,15 @@
+<package>
+  <description brief="panda_gazebo_controller">
+
+     panda_gazebo_controller
+
+  </description>
+  <author>jyamada</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/panda_gazebo_controller</url>
+  <depend package="roslib"/>
+  <depend package="roscpp"/>
+  <depend package="std_msgs"/>
+
+</package>

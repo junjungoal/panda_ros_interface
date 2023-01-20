@@ -1,0 +1,37 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name="load_gripper" default="true" />
+  <arg name="launch_rviz" default="true" />
+  <arg name="pipeline" default="ompl" doc="MoveIt planning pipeline"/>
+
+  <!-- If needed, broadcast static tf for robot root -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="virtual_joint_broadcaster_1" args="0 0 0 0 0 0 world panda_link0" />
+
+  <!-- <node name="joint_state_desired_publisher" pkg="topic_tools" type="relay" args="joint_states joint_states_desired" /> -->
+<include file="$(find panda_moveit_config)/launch/move_group.launch">
+  <arg name="info" value="true"/>
+  <arg name="pipeline" value="$(arg pipeline)" />
+  <arg name="allow_trajectory_execution" value="true"/>
+  <arg name="fake_execution" value="false"/>
+  <arg name="load_gripper" value="$(arg load_gripper)"/>
+  <arg name="load_robot_description" value="false"/>
+</include>
+
+  <rosparam command="load" file="$(find panda_ros_controllers)/config/franka_control_node.yaml" />
+
+  <!--Load Moveit configuration values-->
+  <rosparam file="$(find panda_gazebo)/cfg/controllers/moveit.yaml" command="load" />
+
+  <!--Load and start the controllers-->
+  <include file="$(find panda_gazebo_controller)/launch/load_controllers.launch.xml">
+    <arg name="load_gripper" value="$(arg load_gripper)"/>
+  </include>
+
+  <!-- <include file="$(find realsense2_camera)/launch/rs_camera.launch"> -->
+  <!--     <arg name="camera" value="front_camera" /> -->
+  <!--     <arg name="serial_no" value="042222071670" /> -->
+  <!-- </include> -->
+
+
+  <include file="$(find panda_moveit_config)/launch/moveit_rviz.launch" if="$(arg launch_rviz)" />
+</launch>
