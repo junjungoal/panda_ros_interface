@@ -8,5 +8,5 @@
   <!--Load the controllers-->
   <arg if="$(arg stopped)" name="command_args" value="--stopped"/>
   <arg unless="$(arg stopped)" name="command_args" value=""/>
-  <node name="position_joint_trajectory_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="$(arg command_args) panda_arm_controller"/>
+  <node name="position_joint_trajectory_controller_spawner" pkg="controller_manager" type="spawner" respawn="false" output="screen" args="$(arg command_args) position_joint_trajectory_controller"/>
 </launch>
