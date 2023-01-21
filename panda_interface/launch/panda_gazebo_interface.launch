@@ -4,6 +4,10 @@
   <arg name="launch_rviz" default="true" />
   <arg name="pipeline" default="ompl" doc="MoveIt planning pipeline"/>
 
+  <!--Spawn the Panda robot-->
+  <include file="$(find franka_gazebo)/launch/panda.launch" />
+
+
   <!-- If needed, broadcast static tf for robot root -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="virtual_joint_broadcaster_1" args="0 0 0 0 0 0 world panda_link0" />
 
