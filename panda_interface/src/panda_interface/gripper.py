@@ -61,6 +61,7 @@ class GripperInterface(object):
 
         ns = self.name +'/'
 
+        self._gazebo = gazebo
         self._joint_positions = dict()
         self._joint_names = gripper_joint_names
         self._joint_velocity = dict()
@@ -68,21 +69,6 @@ class GripperInterface(object):
 
         self._joint_states_state_sub = rospy.Subscriber(ns + 'joint_states', JointState, self._joint_states_callback, queue_size = 1, tcp_nodelay = True)
 
-        self._exists = False
-
-        # ----- Initial test to see if gripper is loaded
-        try:
-            rospy.get_param("/franka_gripper/robot_ip")
-        except KeyError:
-            rospy.loginfo("FrankaGripper: could not detect gripper.")
-            return
-        except (socket.error, socket.gaierror):
-            print ("Failed to connect to the ROS parameter server!\n"
-           "Please check to make sure your ROS networking is "
-           "properly configured:\n")
-            sys.exit()
-
-        # ----- Wait for the gripper device status to be true
         self._exists = True
 
         self._gripper_speed = 0.05
@@ -273,7 +259,7 @@ class GripperInterface(object):
         :rtype: bool
         """
         self._caller = "open gripper"
-        return self.move_joints(0.2)
+        return self.move_joints(0.08)
 
     def close(self):
         """
