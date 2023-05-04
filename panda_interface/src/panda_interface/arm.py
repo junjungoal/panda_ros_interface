@@ -369,6 +369,9 @@ class PandaArmInterface(object):
             print ("Switching to position control")
             resp = self.switch_controllers('position_joint_trajectory_controller')
 
+        if isinstance(positions, list) or isinstance(positions, np.ndarray):
+            positions = dict(zip(self._joint_names, positions))
+
         if use_moveit and self._movegroup_interface:
             self._movegroup_interface.go_to_joint_positions(
                 [positions[n] for n in self._joint_names], tolerance=threshold
@@ -435,8 +438,6 @@ class PandaArmInterface(object):
         )
         rospy.loginfo("{}: Trajectory controlling complete".format(
             self.__class__.__name__))
-
-
 
     def switch_controllers(self, start_controller):
         stop_controller = self.get_current_controller()
