@@ -10,6 +10,7 @@ from sensor_msgs.msg import Image, JointState
 from geometry_msgs.msg import *
 from std_msgs.msg import Float32MultiArray
 import time
+from future.utils import iteritems
 
 import franka_gripper
 import franka_gripper.msg
@@ -33,6 +34,8 @@ from panda_interface.utils.ros_utils import create_pose_msg
 from panda_interface.move_group_interface import PandaMoveGroupInterface
 from panda_interface.collision_behaviour_interface import CollisionBehaviourInterface
 from panda_interface.gripper import GripperInterface
+from panda_interface.wait_for import wait_for
+from panda_interface.joint_trajectory_action_client import JointTrajectoryActionClient
 
 class PandaArmInterface(object):
     def __init__(self, config=AttrDict()):
@@ -79,6 +82,7 @@ class PandaArmInterface(object):
         self._joint_angles = AttrDict()
         self._joint_velocity = AttrDict()
         self._joint_effort = AttrDict()
+        self._jacobian = None
 
         if self.is_in_controller_list('cartesian_velocity_controller'):
             self.switch_controllers('cartesian_velocity_controller')
@@ -188,6 +192,10 @@ class PandaArmInterface(object):
         self._errors = message_converter.convert_ros_message_to_dictionary(
             msg.current_errors
         )
+
+        self._jacobian = np.asarray(msg.O_Jac_EE).reshape(6, 7, order='F')
+        # self._jacobian = np.asarray(msg.O_Jac_hand).reshape(6, 7, order='F')
+
         self.franka_state = msg
 
     def _update_joints(self, msg):
@@ -362,7 +370,10 @@ class PandaArmInterface(object):
     def move_to_joint_positions(self, positions,
                                 timeout=10.0,
                                 threshold=0.00085,
+                                speed=0.3,
                                 test=None, use_moveit=True):
+
+        self._speed_ratio = speed
 
         running = self.controller_is_running('position_joint_trajectory_controller')
         if not running:
@@ -380,10 +391,54 @@ class PandaArmInterface(object):
             if use_moveit:
                 rospy.logwarn("{}: MoveGroupInterface was not found! Using JointTrajectoryActionClient instead.".format(
                     self.__class__.__name__))
-            raise NotImplementedError
+            min_traj_dur = 0.5
+            traj_client = JointTrajectoryActionClient(
+                joint_names=self.joint_names
+            )
+            traj_client.clear()
 
+            dur = []
+            for j in range(len(self._joint_names)):
+                dur.append(max(abs(positions[self._joint_names[j]] - self._joint_angles[self._joint_names[j]]) / self._joint_limits.velocity[j], min_traj_dur))
+
+            traj_client.add_point(
+                positions=[self._joint_angles[n] for n in self._joint_names], time=0.0001
+            )
+            traj_client.add_point(positions=[positions[n] for n in self._joint_names], time=max(dur)/self._speed_ratio)
+
+            def genf(joint, angle):
+                def joint_diff():
+                    return abs(angle - self._joint_angles[joint])
+                return joint_diff
+            diffs = [genf(j, a) for j, a in list(iteritems(positions)) if j in self._joint_angles]
+            fail_msg = "{}: limb failed to reach commanded joint positions".format(self.__class__.__name__)
+
+            def test_collision():
+                if self.has_collided():
+                    rospy.logerr(' '.join(["Collision detected.", fail_msg]))
+                    return True
+                return False
+
+            traj_client.start()
+
+            wait_for(
+                test=lambda: test_collision() or traj_client.result() is not None or \
+                (callable(test) and test() == True) or \
+                (all(diff() < threshold for diff in diffs)),
+                timeout=timeout,
+                timeout_msg=fail_msg,
+                rate=100,
+                raise_on_error=False
+            )
+            res = traj_client.result()
+            if res is not None and res.error_code:
+                rospy.loginfo('Trajectory Server Message: {}'.format(res))
+
+
+        rospy.sleep(0.5)
         rospy.loginfo("{}: Trajectory controlling complete".format(
             self.__class__.__name__))
+
 
     def get_flange_pose(self, pos=None, ori=None):
         """
@@ -579,6 +634,15 @@ class PandaArmInterface(object):
             error_in_current_status=self.error_in_current_status()
         )
 
+    def zero_jacobian(self):
+        """
+        Returns the current jacobian matrix given by libfranka.
+
+        :return: end-effector jacobian (6,7)
+        :rtype: np.ndarray [6x7]
+        """
+        return copy.deepcopy(self._jacobian)
+
     @property
     def gripper(self):
         return self._gripper
@@ -606,4 +670,11 @@ class PandaArmInterface(object):
     @property
     def errors(self):
         return self._errors
+
+    def has_collided(self):
+        """
+        Returns true if either joint collision or cartesian collision is detected. 
+        Collision thresholds can be set using instance of :py:class:`franka_tools.CollisionBehaviourInterface`.
+        """
+        return any(self._joint_collision) or any(self._cartesian_collision)
 
